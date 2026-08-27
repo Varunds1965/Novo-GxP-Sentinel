@@ -1,0 +1,66 @@
+[project]
+name = "gxp-sentinel"
+version = "0.9.0"
+description = "GxP Sentinel Local Edition - zero-cloud, evidence-first multi-agent GxP assurance prototype"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+
+# The core of this application has NO runtime dependencies. That is a deliberate
+# architectural guarantee, not an accident: the target user is a non-developer on
+# a managed laptop where package installation may be blocked by endpoint
+# security. Domain models, the deterministic rules engine, ingestion, FTS5
+# retrieval, the evidence graph, the audit hash chain and both gateways run on
+# the standard library alone, so the assurance core cannot be broken by a failed
+# install. See docs/ADR/0001-zero-dependency-core.md.
+dependencies = []
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115", "uvicorn[standard]>=0.32", "pydantic>=2.9"]
+dev = ["ruff>=0.7", "mypy>=1.13", "pytest>=8.3", "pytest-cov>=6.0", "import-linter>=2.1"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["backend", "tests"]
+
+[tool.ruff.lint]
+select = ["E","F","W","I","N","UP","B","A","C4","DTZ","S","T20","SIM","PTH","RUF","ANN","ASYNC","TRY","LOG","PL"]
+ignore = ["ANN401","TRY003","PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101","ANN","PLR2004","D"]
+"scripts/**" = ["T20"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+mypy_path = "backend"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["backend"]
+addopts = "-q --strict-markers"
+
+[tool.coverage.report]
+fail_under = 80
+
+[tool.importlinter]
+root_packages = ["app"]
+
+[[tool.importlinter.contracts]]
+name = "Layers point inward and downward only"
+type = "layers"
+layers = ["app.api", "app.orchestration", "app.agents", "app.services", "app.repositories", "app.domain"]
+
+[[tool.importlinter.contracts]]
+name = "The domain is pure"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = ["app.api","app.services","app.repositories","app.agents","sqlite3"]
+
+[[tool.importlinter.contracts]]
+name = "Agents never touch the database"
+type = "forbidden"
+source_modules = ["app.agents","app.rules"]
+forbidden_modules = ["app.repositories","sqlite3"]
