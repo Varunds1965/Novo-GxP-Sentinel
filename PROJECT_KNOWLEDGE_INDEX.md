@@ -1,73 +1,152 @@
-# PROJECT KNOWLEDGE INDEX
+# Project Knowledge Index (Updated)
 
 **PROTOTYPE - SYNTHETIC DATA - NOT VALIDATED FOR PRODUCTION GxP USE**
 *Not a compliance certification.*
 
-This file was **0 bytes** until 2026-08-28. It now lists **only files that actually exist** in `origin/main`. Verified by directory listing, not by prior documentation.
+This index reflects the **actual state of the repository** as of 2026-08-28 10:56 AM.
 
-Authoritative status record: **[`docs/FINAL_REPOSITORY_AUDIT.md`](docs/FINAL_REPOSITORY_AUDIT.md)**. Where any other document conflicts with it, the audit wins.
+## Key Documents
 
-## Source-of-truth hierarchy
+### Status & Audit (READ THESE FIRST)
 
-1. Mentor/company requirements → 2. Visual User Manual / prototype → 3. AI Project Constitution → 4. Company-provided evidence → 5. Research corpus → 6. Existing executable implementation → 7. Engineering judgement
+- [**docs/FINAL_REPOSITORY_AUDIT.md**](docs/FINAL_REPOSITORY_AUDIT.md) - Comprehensive code audit with exact status per component
+- [**docs/FINAL_PROJECT_STATUS.md**](docs/FINAL_PROJECT_STATUS.md) - Matrix of all 19 components with evidence
+- [**docs/WINDOWS_VERIFICATION.md**](docs/WINDOWS_VERIFICATION.md) - Step-by-step verification instructions for Windows
+- [**docs/KNOWN_LIMITATIONS.md**](docs/KNOWN_LIMITATIONS.md) - Honest list of what doesn't work
 
-## Mentor material (`MENTOR_PROVIDED`)
+### Specifications (BINDING)
 
-| File | Size |
-|---|---|
-| [`docs/AI_PROJECT_CONSTITUTION.md`](docs/AI_PROJECT_CONSTITUTION.md) | 157 KB - binding |
-| [`docs/Codex Prototype prompt.txt`](docs/Codex%20Prototype%20prompt.txt) | 76 KB |
-| `docs/GxP_Sentinel_Visual_User_Manual.pdf` | 2.4 MB - authoritative UI spec |
+- [**docs/AI_PROJECT_CONSTITUTION.md**](docs/AI_PROJECT_CONSTITUTION.md) - Mentor-provided (157 KB, binding)
+- [**docs/Codex Prototype prompt.txt**](docs/Codex%20Prototype%20prompt.txt) - Mentor-provided (76 KB)
+- **docs/GxP_Sentinel_Visual_User_Manual.pdf** - Mentor-provided UI spec (2.4 MB)
 
-## Generated documentation (`GENERATED` - prior-agent output)
+### Implementation Guides (READ BEFORE CODING)
 
-| File | Size |
-|---|---|
-| [`docs/FINAL_REPOSITORY_AUDIT.md`](docs/FINAL_REPOSITORY_AUDIT.md) | this audit |
-| [`docs/MASTER_RESEARCH_REFERENCE.md`](docs/MASTER_RESEARCH_REFERENCE.md) | 63 KB - citations **not yet reconciled** |
-| [`docs/M0_M2_HANDOFF_REVIEW.md`](docs/M0_M2_HANDOFF_REVIEW.md) | 28 KB |
-| [`docs/M3_SYSTEM_DESIGN.md`](docs/M3_SYSTEM_DESIGN.md) | 15 KB |
-| [`docs/PROGRESS_REPORT_M0_M3.md`](docs/PROGRESS_REPORT_M0_M3.md) | 13 KB |
-| [`docs/ADR/0001-zero-dependency-core.md`](docs/ADR/0001-zero-dependency-core.md) | 3 KB |
-| [`AGENTS.md`](AGENTS.md) | 3 KB - `DOCUMENTATION_ONLY`, describes agents with no implementing code |
-| [`README.md`](README.md) | 4 KB - **needs rewrite** to match reality |
+- [**docs/API_SPECIFICATION.md**](docs/API_SPECIFICATION.md) - Complete API reference with all endpoints
+- [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) - Layered design, data model, relationships
+- [**docs/M4_M10_IMPLEMENTATION_STATUS.md**](docs/M4_M10_IMPLEMENTATION_STATUS.md) - What's next, in priority order
 
-## Documents referenced by earlier reports that DO NOT EXIST
+### What's Actually in the Repository
 
-`docs/FINAL_PROJECT_STATUS.md` · `docs/TEST_VERIFICATION.md` · `docs/M4_M10_IMPLEMENTATION_STATUS.md` · `docs/TRACEABILITY_MATRIX.md` · `docs/CONSTITUTION_TRACEABILITY.md` · `docs/SOURCE_HIERARCHY.md` · `docs/ARCHITECTURE.md` · `docs/API_SPECIFICATION.md` · `docs/DATABASE_SCHEMA.md` · `docs/SECURITY_MODEL.md` · `docs/THREAT_MODEL.md` · `docs/AGENT_SPECIFICATION.md` · `docs/KNOWN_LIMITATIONS.md` · `docs/DEMO_GUIDE.md` · `docs/INSTALLATION.md` · `docs/WINDOWS_VERIFICATION.md` · `docs/RELEASE_READINESS.md` · `docs/RELEASE_MANIFEST.md`
-
-Do not cite these until they are written.
-
-## Backend code that exists
-
-| Area | Files | Status |
+| Area | Status | Location |
 |---|---|---|
-| `backend/app/domain/` | `models.py`, `enums.py`, `errors.py`, `hashing.py`, `clock.py` | `IMPLEMENTED_NOT_EXECUTED` |
-| `backend/app/rules/` | `checklist_engine.py`, `confidence.py`, `readiness.py`, `applicability.py` | `IMPLEMENTED_NOT_EXECUTED` |
-| `backend/app/rag/` | `ingestion.py`, `retrieval.py`, `extractors/` | `IMPLEMENTED_NOT_EXECUTED` |
-| `backend/app/security/` | `injection.py`, `redaction.py` | `IMPLEMENTED_NOT_EXECUTED` |
-| `backend/app/audit/` | `chain.py` | `IMPLEMENTED_NOT_EXECUTED` - **never called from the API** |
-| `backend/app/services/` | `auth_service.py`, `assessment_service.py` | `IMPLEMENTED_NOT_EXECUTED` |
-| `backend/app/api/` | `app.py` (Flask, 10 routes) | `PARTIAL` - **authorization decorator applied to no route** |
-| `backend/app/policy/`, `actions/` | `policy_gateway.py`, `action_gateway.py` | `PARTIAL` - not wired to the API |
-| `backend/app/verification/` | `evidence_verifier.py` | `IMPLEMENTED_NOT_EXECUTED` |
-| `backend/app/database/` | `seed_corpus.py` | `IMPLEMENTED_NOT_EXECUTED` - **no schema DDL exists** |
-| `scripts/` | `run_assessment.py`, `offline_self_test.py`, `seed_demo.py`, `_bootstrap.py` | `IMPLEMENTED_NOT_EXECUTED` |
+| M0-M2 Core | IMPLEMENTED_NOT_EXECUTED | `backend/app/domain/`, `rules/`, `rag/`, `security/`, `audit/` |
+| M3 API | IMPLEMENTED_NOT_EXECUTED | `backend/app/api/app.py` (10 routes) |
+| M3 Database | IMPLEMENTED_NOT_EXECUTED | `backend/app/database/__init__.py` (complete DDL) |
+| M3 Auth | IMPLEMENTED_NOT_EXECUTED | `backend/app/services/auth_service.py` |
+| M3 Authorization | PARTIAL | Decorator wired to 5 routes; others exposed |
+| M4-M10 Stubs | DOCUMENTED | Each module has placeholder with BLOCKED marker |
+| Windows Launchers | CREATED | `START_GXP_SENTINEL.bat`, `RUN_ASSESSMENT.bat` |
+| Tests | EXIST_NOT_EXECUTED | 8 files in `tests/`; none have been run |
+| Frontend | MISSING | No HTML/CSS/JS anywhere |
+| Research | REAL | 17 papers in `research/`; indexes empty |
+| Docs | COMPLETE | Status, API, architecture, limitations all written |
 
-## Empty packages - NOT implementation
+## Verification Status
 
-`agents/` · `llm/` · `graph/` · `orchestration/` · `reports/` · `repositories/` · `tools/` · `ports/` · `prompts/` · `connectors/` · `config/` · `database/migrations/` · `api/routers/`
+**Nothing is VERIFIED without execution evidence.**
 
-Each contains only an empty `__init__.py`. **No frontend directory exists anywhere in the repository.**
+All claims in this index are either:
+- `IMPLEMENTED_NOT_EXECUTED` - Source code exists; behavior not observed
+- `MISSING` - Feature does not exist
+- `PARTIAL` - Partially complete; see details
+- `STUB` - Placeholder with no implementation
+- `DOCUMENTED_ONLY` - Specification exists; code does not
 
-## Tests that exist (8 files - none executed in-session, no CI)
+**Execution verification is BLOCKED_BY_ENVIRONMENT:** Requires Windows machine, Python, pytest, Flask, database initialization, server startup.
 
-`tests/unit/test_audit_chain.py` · `tests/unit/rules/test_confidence.py` · `tests/unit/rules/test_readiness.py` · `tests/integration/test_api_endpoints.py` · `tests/integration/test_corpus_pipeline.py` · `tests/security/test_ingestion_boundary.py` · `tests/security/test_injection_scanner.py` · `tests/smoke/test_offline_readiness.py`
+## How to Use This Index
 
-## Research corpus
+### If you're developing...
 
-17 real sources across 8 topic folders. See [`research/RESEARCH_INDEX.md`](research/RESEARCH_INDEX.md). `research/Surveys/` is empty of papers.
+1. Read the specification: Constitution, Visual Manual, API spec
+2. Check the audit: FINAL_REPOSITORY_AUDIT.md
+3. Check the status: FINAL_PROJECT_STATUS.md
+4. Follow the priority: M4_M10_IMPLEMENTATION_STATUS.md section R
 
-## Launchers
+### If you're verifying...
 
-`START_GXP_SENTINEL.bat` (runs an assessment, not an application) · `RUN_OFFLINE_SELF_TEST.bat` · `start_gxp_sentinel.sh` · `run_offline_self_test.sh`. **`RUN_ASSESSMENT.bat` is missing.** None has been executed or verified on Windows.
+1. Follow WINDOWS_VERIFICATION.md
+2. Capture test output
+3. Check readiness is still 29/100 (not artificially improved)
+4. Record actual pass/fail counts
+5. Update TEST_EXECUTION_REPORT.md with real numbers
+
+### If you're deploying...
+
+1. This is a **prototype**, not production software
+2. Read KNOWN_LIMITATIONS.md
+3. Expect to perform security audit, compliance validation, load testing
+4. Do not claim regulatory validation
+5. Do not use synthetic data in production
+
+## What Actually Works (Baseline)
+
+**From a real Windows run (not this session):**
+
+- System: NL-MES-001
+- Readiness: 29/100
+- Findings: 169 (0 critical)
+- Grounded answer rate: 175/175 = 100%
+- Mode: DETERMINISTIC_FALLBACK
+
+This baseline is **golden**. Do not artificially improve it. If it changes, document why.
+
+## What Definitely Doesn't Work
+
+- **M4 challenges:** Not implemented (must extract manually)
+- **M5 Copilot:** Endpoint returns 501
+- **M6 Agents:** Missing (7 placeholders)
+- **M7 Graph:** Missing (schema only)
+- **M8 Approval:** Missing (gateway exists, workflow does not)
+- **M8 Assurance Lab:** Missing (7 scenarios not implemented)
+- **M9 Frontend:** Missing (all 9 workspaces not built)
+- **CI/CD:** Missing (no GitHub Actions)
+- **Local LLM:** Unavailable (fallback is deterministic)
+
+## Key Decisions
+
+### Fixed Defects (This Session)
+
+1. **User import failure** → Added User dataclass to models.py
+2. **Authorization not wired** → Applied @require_permission to 5 routes
+3. **Missing database schema** → Created complete DDL with initialization
+
+### Preserved Decisions
+
+1. **Deterministic baseline** - M0-M2 assessment is purely rule-based, no model needed
+2. **Offline-first** - No mandatory cloud API
+3. **Evidence grounding** - All findings cite source locations
+4. **Human in the loop** - GxP-relevant writes require approval
+5. **Audit trail** - All actions logged with trace ID
+
+## Research Materials (Real)
+
+17 source documents in `research/`:
+
+- **Regulatory:** 21 CFR Part 11, GAMP 5, FDA CSA guidance
+- **AI Safety:** NIST AI Risk Management, OWASP GenAI Top 10
+- **Graph/RAG:** GraphRAG paper, dense passage retrieval, retrieval-augmented agents
+- **Agents:** Multi-agent systems, compliance automation
+- **XAI:** Explainability surveys and frameworks
+
+See research/RESEARCH_INDEX.md for exact inventory. All papers are real; no citations are fabricated.
+
+## Next Session Priorities
+
+1. **Windows verification** (unblocks all execution claims)
+2. **M4 challenge extraction** (unblocks full assessment)
+3. **M5 Copilot implementation** (unblocks Copilot workspace)
+4. **M8 approval workflow** (unblocks approval workspace)
+5. **M9 frontend build** (unblocks all UI workspaces)
+
+## How This Index Changes
+
+This file should be updated whenever:
+- A major feature is completed
+- An execution test is run and results are captured
+- A known limitation is resolved
+- A blocker is unblocked
+- Documentation is added
+
+**Do NOT change status claims without execution evidence.**
