@@ -1,0 +1,69 @@
+# ---- Virtual environments (NOTE: .venv is currently TRACKED in git history) ----
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.Python
+pyvenv.cfg
+
+# ---- Python bytecode / build artifacts ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+.eggs/
+
+# ---- Secrets / credentials (never commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.*
+credentials.*
+credentials.json
+token.json
+*.token
+id_rsa*
+
+# ---- Test / tooling caches ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# ---- Runtime data / generated output ----
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+data/runtime/
+data/quarantine/
+out/
+reports/generated/
+*.log
+
+# ---- Release archives ----
+*.zip
+*.tar.gz
+*.7z
+
+# ---- IDE / OS ----
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
