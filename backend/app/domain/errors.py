@@ -33,6 +33,18 @@ class GxpSentinelError(Exception):
         }
 
 
+class AuthenticationError(GxpSentinelError):
+    """User authentication failed (invalid credentials, expired token, etc)."""
+    code = "AUTHENTICATION_FAILED"
+    http_status = 401
+
+
+class AuthorizationError(GxpSentinelError):
+    """User is authenticated but not authorized for this action."""
+    code = "FORBIDDEN"
+    http_status = 403
+
+
 class ConfigurationError(GxpSentinelError):
     code = "CONFIGURATION_ERROR"
 
@@ -45,11 +57,6 @@ class ValidationError(GxpSentinelError):
 class NotFoundError(GxpSentinelError):
     code = "NOT_FOUND"
     http_status = 404
-
-
-class AuthorizationError(GxpSentinelError):
-    code = "FORBIDDEN"
-    http_status = 403
 
 
 class EvidenceError(GxpSentinelError):
