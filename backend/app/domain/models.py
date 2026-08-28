@@ -37,6 +37,23 @@ SCHEMA_VERSION = "1.0"
 
 
 @dataclass(frozen=True, slots=True)
+class User:
+    """Authenticated user with role."""
+    id: str
+    username: str
+    role_id: str  # Foreign key to Role
+    created_at: datetime | None = None
+    
+    @property
+    def role(self) -> Role | None:
+        """Role property for auth_service compatibility."""
+        try:
+            return Role(self.role_id)
+        except (ValueError, KeyError):
+            return None
+
+
+@dataclass(frozen=True, slots=True)
 class SourceRecord:
     """A single ingested evidence source with full provenance (PRIN-R-012)."""
 

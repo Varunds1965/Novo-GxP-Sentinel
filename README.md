@@ -1,97 +1,228 @@
-# GxP Sentinel - Local Edition
+# GxP Sentinel
 
-> **PROTOTYPE - SYNTHETIC DATA - NOT VALIDATED FOR PRODUCTION GxP USE**
+**PROTOTYPE - SYNTHETIC DATA - NOT VALIDATED FOR PRODUCTION GxP USE**
 
-An evidence-first, zero-cloud, multi-agent GxP assurance prototype. It answers
-auditor questions with traceable evidence, detects control gaps deterministically,
-requires a human for every consequential action, and keeps working when the local
-language model does not.
+*Not a compliance certification.*
 
-It makes **no** outbound network call at runtime, requires **no** API key, and the
-assurance core installs **nothing**.
+GxP Sentinel is a prototype system for evidence-based quality assurance readiness assessment in regulated environments. It combines deterministic rule engines with retrieval-augmented generation to ground AI responses in company evidence.
 
-## Quickstart
+## Current Status
 
-```bash
-python3 scripts/offline_self_test.py     # prove the offline guarantee
-python3 scripts/run_assessment.py        # assess the evidence package
-python3 -m unittest discover -s tests -p 'test_*.py' -t .
+**Session:** 2026-08-28
+
+### What's Implemented and Working (IMPLEMENTED_NOT_EXECUTED)
+
+- **M0-M2 Deterministic Core:** Domain models, rule engines, evidence ingestion, FTS5 retrieval, audit chain
+- **M3 API:** Flask application with 10 routes, authentication, authorization decorator, database schema (SQLite)
+- **Security:** Prompt injection detection, redaction, audit logging
+- **Baseline Assessment:** Known working on Windows (readiness 29/100, 169 findings open, 0 critical)
+
+### What's Partially Implemented
+
+- **M3 Authorization:** Decorator created and wired to 5 protected routes; needs completion on all routes
+- **Database Layer:** Schema created; migration runner not yet tested
+- **Policy/Action Gateways:** Modules exist; not yet connected to routes
+
+### What's Not Implemented
+
+- **M4 Auditor Challenges:** 25 scenarios not yet extracted from mentor material
+- **M5 Copilot:** RAG plumbing exists; copilot service missing
+- **M5 Local LLM:** Adapter stub created; model not tested
+- **M6 Agents:** 7 agent skeletons missing; orchestration missing
+- **M7 Evidence Graph:** Schema created; builder/query engine missing
+- **M8 Approval Workflow:** Database schema created; service/UI missing
+- **M8 Assurance Lab:** 7 scenarios not yet implemented
+- **M9 Frontend:** All 9 workspaces not yet built
+
+### What's Blocked
+
+All execution-level verification is **BLOCKED_BY_ENVIRONMENT** because this audit was performed via the GitHub API without access to:
+- The Windows filesystem at `C:\Users\Varun\Documents\GitHub\Novo-GxP-Sentinel`
+- Python runtime
+- Database initialization
+- Server startup
+- Test execution
+- Browser automation
+
+You must run the verification steps in `docs/WINDOWS_VERIFICATION.md` on your Windows machine.
+
+## Quick Start (Windows)
+
+### Start the Server
+
+```powershell
+cd C:\Users\Varun\Documents\GitHub\Novo-GxP-Sentinel
+.\START_GXP_SENTINEL.bat
 ```
 
-Windows users double-click `RUN_OFFLINE_SELF_TEST.bat` then `START_GXP_SENTINEL.bat`.
-There is nothing to install and no configuration to edit.
+Server starts at `http://127.0.0.1:8765`.
 
-## What it does, verified
+### Run an Assessment
 
-Against the supplied MES PAS-X evidence package, on a frozen assessment date of
-27 August 2026:
-
-| Measure | Result |
-|---|---|
-| Documents ingested, hashed, scanned and indexed | 35 |
-| Searchable evidence chunks (SQLite FTS5) | 4,603 |
-| Legitimate evidence wrongly quarantined | 0 |
-| Audit controls evaluated | 350 of 350 |
-| Assessable at the system's current lifecycle phase | 175 |
-| Correctly reported as not-yet-applicable | 175 |
-| Grounded answer rate | 100% |
-| Material findings requiring a human decision | 169 |
-| Prototype readiness indicator | 29/100, NOT READY FOR SIMULATED INSPECTION |
-| Full sweep runtime | 2.7 s |
-| Tests | 88 passing, no model and no packages present |
-
-## Architecture in one screen
-
-```
-                 USER (browser)  ->  127.0.0.1:8765
-                            |
-     API (DTOs only)  ->  SERVICES (authz, transactions)
-                            |
-   A0 SUPERVISOR  ->  A1 A2 A3 A4 A5 A6 A7  (one shared local model)
-                            |
-   C1 EVIDENCE VERIFIER  ->  C2 POLICY GATEWAY  ->  C3 ACTION GATEWAY
-                            |
-                     HUMAN APPROVAL
-                            |
-   REPOSITORIES  ->  SQLite: evidence | audit | config | roles  + FTS5
-                            |
-   DETERMINISTIC RULES ENGINE  |  EVIDENCE GRAPH  |  HASH-CHAINED AUDIT
+```powershell
+.\RUN_ASSESSMENT.bat
 ```
 
-Seven logical specialist agents share **one** local llama.cpp model. They differ
-only by prompt, tools, permissions, deterministic modules, memory scope and
-output schema. The model interprets and summarises; it never decides a finding,
-a severity, a confidence level, a permission or an approval.
+Results in `docs/evidence/`.
 
-## The two runtime modes
+### Run Tests
 
-| Mode | Trigger | Behaviour |
-|---|---|---|
-| `LOCAL_AI` | the bundled model answers on loopback | full pipeline, narrative prose generated locally |
-| `DETERMINISTIC_FALLBACK` | model absent or unhealthy | every feature works, narratives rendered from templates, clearly labelled |
+```powershell
+Activate the venv, then:
+$env:PYTHONPATH="backend"
+pytest -v
+```
 
-Findings, severities, evidence references and confidence levels are **identical**
-in both modes. Only the prose differs, and the interface never presents template
-text as model output or the reverse.
+## Architecture
+
+### Layered Design
+
+```
+API Layer              (Flask routes, authentication, authorization)
+    ↓
+Service Layer         (Assessment, Auth, Evidence, approval logic)
+    ↓
+Domain Models         (Frozen dataclasses, zero I/O imports)
+    ↓
+Rules Engine          (Deterministic scoring, readiness, confidence)
+    ↓
+Retrieval Layer       (FTS5 search, chunking, provenance)
+    ↓
+Evidence Store        (SQLite with schema, hashing, metadata)
+```
+
+### Deterministic Baseline
+
+The M0-M2 core runs in `DETERMINISTIC_FALLBACK` mode, which:
+- Requires zero LLM model
+- Works offline
+- Produces 100% grounded answers
+- Is always available as a fallback
+
+Optional `LOCAL_AI` mode (M5) wraps deterministic logic with local model enhancement where safe.
+
+## Project Structure
+
+```
+.
+├── backend/
+│   └── app/
+│       ├── api/              API routes (Flask)
+│       ├── services/         Business logic
+│       ├── domain/           Models, enums, errors
+│       ├── rules/            Deterministic engines
+│       ├── rag/              Retrieval and ingestion
+│       ├── security/         Injection detection
+│       ├── audit/            Audit trail
+│       ├── database/         SQLite layer
+│       ├── agents/           (M6 stub)
+│       ├── graph/            (M7 stub)
+│       ├── llm/              (M5 stub)
+│       ├── orchestration/    (M6 stub)
+│       ├── policy/           Policy gateway
+│       └── actions/          Action gateway
+├── tests/                    Test suite
+├── scripts/                  Assessment runner, seeders
+├── docs/                     Documentation
+├── research/                 Research papers
+├── requirements.txt          Python dependencies
+└── START_GXP_SENTINEL.bat    Windows server launcher
+```
 
 ## Documentation
 
-| Document | Purpose |
-|---|---|
-| `docs/AI_PROJECT_CONSTITUTION.md` | the binding engineering charter, 260 numbered rules |
-| `docs/MASTER_RESEARCH_REFERENCE.md` | every supplied source synthesised into one reference |
-| `docs/ADR/0001-zero-dependency-core.md` | why the core installs nothing |
-| `AGENTS.md` | binding instructions for AI contributors |
+- **[docs/FINAL_REPOSITORY_AUDIT.md](docs/FINAL_REPOSITORY_AUDIT.md)** - Complete code-level audit with status per component
+- **[docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md)** - Complete API reference
+- **[docs/WINDOWS_VERIFICATION.md](docs/WINDOWS_VERIFICATION.md)** - Step-by-step verification on Windows
+- **[docs/M4_M10_IMPLEMENTATION_STATUS.md](docs/M4_M10_IMPLEMENTATION_STATUS.md)** - What's next
+- **[docs/AI_PROJECT_CONSTITUTION.md](docs/AI_PROJECT_CONSTITUTION.md)** - Mentor-provided specification (binding)
+- **[docs/GxP_Sentinel_Visual_User_Manual.pdf](docs/GxP_Sentinel_Visual_User_Manual.pdf)** - Authoritative UI specification
 
-## Honest limits
+## Verification Status
 
-This is not a validated computerised system. It makes no compliance claim about
-itself and no compliance determination about anything else. The audit trail is
-tamper-**evident**, not immutable and not a Part 11 record. Approvals are
-prototype human approvals, not electronic signatures. Roles are simulated. OCR,
-image-only PDFs and DOCX images are out of scope. See
-`docs/KNOWN_LIMITATIONS.md`.
+| Component | Status | Evidence |
+|---|---|---|
+| M0-M2 Core | IMPLEMENTED_NOT_EXECUTED | Source code present; execution blocked |
+| M3 API | IMPLEMENTED_NOT_EXECUTED | Flask app, routes, auth; execution blocked |
+| M3 Authorization | IMPLEMENTED_NOT_EXECUTED | Decorator wired to 5 routes; incomplete |
+| M3 Database | IMPLEMENTED_NOT_EXECUTED | Schema created; initialization blocked |
+| M4 Auditor Challenges | MISSING | Not extracted from mentor material |
+| M5 RAG | PARTIAL | Ingestion/retrieval code; copilot missing |
+| M5 Copilot | MISSING | Endpoint stub only |
+| M5 Local LLM | STUB | Adapter interface; model not tested |
+| M6 Agents | MISSING | 7 agent placeholders; unimplemented |
+| M6 Orchestration | STUB | Safety framework missing |
+| M7 Graph | STUB | Database schema; builder/queries missing |
+| M8 Approval | MISSING | DB schema; service/UI missing |
+| M8 Assurance Lab | MISSING | 7 scenarios not implemented |
+| M9 Frontend | MISSING | All 9 workspaces not built |
+| M10 Tests | PARTIAL | 8 test files; none executed in this session |
 
-## Licence
+## Known Limitations
 
-MIT. See `LICENSE`.
+- No local LLM model runtime
+- No browser-based frontend (HTML/CSS/JS)
+- No approval workflow UI
+- No Assurance Lab scenario execution
+- No evidence upload UI
+- No evidence graph visualization
+- No agent execution
+- All execution verification is BLOCKED_BY_ENVIRONMENT (requires Windows machine)
+
+## Security Model
+
+All consequential actions require:
+
+1. **Authentication** - User identity verified via token
+2. **Authorization** - Role-based permission check
+3. **Policy evaluation** - Is action allowed by policy?
+4. **Approval requirement** - Is GxP-relevant write approved?
+5. **Audit logging** - All actions logged with trace ID
+
+No action bypasses this chain. The API enforces it at every protected endpoint.
+
+## Research Foundation
+
+17 source documents included:
+
+- **Regulatory:** 21 CFR Part 11, GAMP 5, FDA CSA guidance
+- **AI Safety:** NIST AI Risk Management, OWASP GenAI Top 10
+- **Graph/RAG:** GraphRAG, dense passage retrieval, retrieval-augmented agents
+- **Agents:** Multi-agent systems, compliance automation
+- **XAI:** Explainability surveys and frameworks
+
+See [research/RESEARCH_INDEX.md](research/RESEARCH_INDEX.md) for the complete inventory.
+
+## Next Steps (Windows Agent)
+
+1. **Verify the baseline** - Run `docs/WINDOWS_VERIFICATION.md`
+2. **Run tests** - Capture pytest output
+3. **Extract M4 challenges** - From mentor material
+4. **Implement M5 Copilot** - Service wrapper for RAG
+5. **Implement M6 agents** - With M5 foundation
+6. **Build M7 graph** - Entity extraction and relationship inference
+7. **Implement M8 approval** - Workflow service and UI
+8. **Build M9 frontend** - Nine workspaces from spec
+9. **Create release ZIP** - Exclude .venv, __pycache__, credentials
+
+## Contributing
+
+This is a prototype. Do not commit:
+- `.venv/` (virtual environment)
+- `__pycache__/` or `*.pyc`
+- `.env` or credential files
+- Temporary logs or artifacts
+
+All code changes must preserve:
+- Existing functionality
+- Test suite integrity
+- Audit trail completeness
+- Mentor material provenance
+
+## License
+
+See `LICENSE` file.
+
+## Contact
+
+This is a prototype/hackathon project created for educational and demonstration purposes. It is not production-validated GxP software.
