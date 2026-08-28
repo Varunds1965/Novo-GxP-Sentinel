@@ -67,3 +67,21 @@ reports/generated/
 .DS_Store
 Thumbs.db
 desktop.ini
+@"
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Pytest
+.pytest_cache/
+
+# Local test evidence
+docs/evidence/
+"@ | Add-Content .gitignore
