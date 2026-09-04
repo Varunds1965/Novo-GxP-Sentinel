@@ -11,6 +11,8 @@ import hashlib
 import sqlite3
 from pathlib import Path
 
+from app.services.auth_service import _hash_password
+
 
 def get_schema_sql() -> str:
     """Return the complete DDL schema."""
@@ -354,14 +356,16 @@ def _seed_demo_users(conn: sqlite3.Connection) -> None:
     """Insert the five demonstration accounts if they do not exist yet.
 
     Passwords are demo-only, deliberately simple, and documented. They are
-    stored as bare SHA-256 digests because SHA-256 is a single call on the
-    standard library; this is a prototype and these are not real identities.
+    stored as salted PBKDF2-HMAC-SHA256 digests, never as plaintext or bare
+    single-round hashes. Each init re-derives the demo hashes so the stored
+    format stays consistent with the verification path in AuthService.
     """
     now = "2026-08-27T00:00:00+00:00"
     for user_id, (username, password, role_id) in _DEMO_USERS.items():
-        digest = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        digest = _hash_password(password)
         conn.execute(
-            "INSERT OR IGNORE INTO users (id, username, password_hash, role_id, created_at, updated_at)"
+            "INSERT OR REPLACE INTO users"
+            " (id, username, password_hash, role_id, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, ?)",
             (user_id, username, digest, role_id, now, now),
         )

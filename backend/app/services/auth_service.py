@@ -9,6 +9,57 @@ from typing import Optional
 from ..domain.models import User
 from ..domain.errors import AuthenticationError, AuthorizationError
 
+# OWASP 2023 guidance recommends >=600,000 iterations for PBKDF2-SHA256; 200,000
+# is the widely-deployed floor and keeps demo logins near-instant on prototype
+# hardware while still being materially more expensive than a bare SHA-256.
+_PBKDF2_ITERATIONS = 200_000
+_PBKDF2_SALT_BYTES = 16
+_PBKDF2_DNS_SIZE = 32
+_SCHEME_PREFIX = "pbkdf2"
+
+
+def _hash_password(password: str) -> str:
+    """Return a salted PBKDF2-HMAC-SHA256 digest string for storage."""
+    salt = secrets.token_bytes(_PBKDF2_SALT_BYTES)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        _PBKDF2_ITERATIONS,
+        dklen=_PBKDF2_DNS_SIZE,
+    )
+    return f"{_SCHEME_PREFIX}:{_PBKDF2_ITERATIONS}:{salt.hex()}:{digest.hex()}"
+
+
+def _verify_password(stored: str, provided: str) -> bool:
+    """Constant-time verify a provided password against a stored digest string.
+
+    Returns False (rather than raising) for any unrecognised scheme or malformed
+    stored value, so a corrupt hash entry behaves identically to a wrong
+    password — never reveals why authentication failed.
+    """
+    if not stored or not provided:
+        return False
+    parts = stored.split(":")
+    if len(parts) != 4 or parts[0] != _SCHEME_PREFIX:
+        return False
+    try:
+        iterations = int(parts[1])
+        salt = bytes.fromhex(parts[2])
+        expected = bytes.fromhex(parts[3])
+    except (ValueError, TypeError):
+        return False
+    if iterations < 1 or len(salt) < 8:
+        return False
+    candidate = hashlib.pbkdf2_hmac(
+        "sha256",
+        provided.encode("utf-8"),
+        salt,
+        iterations,
+        dklen=len(expected),
+    )
+    return secrets.compare_digest(candidate, expected)
+
 
 class AuthService:
     """Handles user authentication and token management."""
@@ -21,18 +72,16 @@ class AuthService:
         """
         Authenticate user and return an access token.
 
-        Demo accounts store a bare SHA-256 digest (see database seeding). The
-        stored value is a digest of the PLAINTEXT password, so the comparison
-        is sha256(provided) == stored. Hashing the stored digest a second time
-        made every login fail and has been removed.
+        Stored passwords are salted PBKDF2-HMAC-SHA256 digests. The comparison
+        is constant-time and scheme-aware: a corrupt or legacy hash entry
+        behaves identically to a wrong password, revealing nothing.
         """
         user = self._fetch_user_with_password(username)
         if user is None:
             raise AuthenticationError(f"User not found: {username}")
 
         password_hash, role_id = user[1], user[2]
-        provided = hashlib.sha256(password.encode("utf-8")).hexdigest()
-        if not secrets.compare_digest(provided, password_hash):
+        if not _verify_password(password_hash, password):
             raise AuthenticationError("Invalid password")
 
         token = secrets.token_urlsafe(32)
