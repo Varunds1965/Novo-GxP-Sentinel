@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 ZERO_HASH = "0" * 64
@@ -20,7 +20,11 @@ def sha256_text(text: str) -> str:
 
 def _default(value: Any) -> Any:
     if isinstance(value, datetime):
-        return value.astimezone().isoformat()
+        # Always canonicalise to UTC. astimezone() without an argument would
+        # normalise to the MACHINE's local offset, which produces different
+        # hashes for the same instant on machines in different timezones and
+        # silently breaks audit-chain verification (observed on UTC+05:30).
+        return value.astimezone(UTC).isoformat()
     if hasattr(value, "value"):
         return value.value
     if isinstance(value, (set, frozenset, tuple)):

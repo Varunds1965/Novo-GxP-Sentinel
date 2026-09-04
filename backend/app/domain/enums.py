@@ -23,6 +23,15 @@ class RuntimeMode(StrEnum):
     DETERMINISTIC_FALLBACK = "DETERMINISTIC_FALLBACK"
 
 
+class AssessmentStatus(StrEnum):
+    """Lifecycle of a persisted assessment run (M3 database layer)."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETE = "COMPLETE"
+    FAILED = "FAILED"
+
+
 class AgentId(StrEnum):
     A0_SUPERVISOR = "A0"
     A1_KNOWLEDGE = "A1"

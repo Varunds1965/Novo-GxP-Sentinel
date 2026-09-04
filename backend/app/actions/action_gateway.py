@@ -9,6 +9,7 @@ This is sufficient for demonstration purposes.
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
+import uuid
 
 
 @dataclass
@@ -78,16 +79,26 @@ class ActionGateway:
     
     def _log_action(self, action_id: str, user_id: str, action_type: str,
                    params: dict, status: str) -> None:
-        """Log action to audit trail."""
+        """Log action to the audit trail (the `audit_log` table)."""
         import json
+        from datetime import datetime, timezone
         self.db.execute(
             """
-            INSERT INTO audit_trail 
-            (timestamp, user_id, action_type, action_id, status, params)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO audit_log
+            (id, user_id, action, resource_type, resource_id, details, result,
+             timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (datetime.utcnow().isoformat(), user_id, action_type, 
-             action_id, status, json.dumps(params))
+            (
+                f"audit-{uuid.uuid4().hex[:12]}",
+                user_id,
+                action_type,
+                "APPROVALS",
+                action_id,
+                json.dumps(params),
+                status,
+                datetime.now(timezone.utc).isoformat(),
+            ),
         )
         self.db.commit()
     

@@ -1,10 +1,14 @@
 """Database initialization and connection management.
 
 Handles idempotent schema creation and per-request connection scoping.
+Also seeds the five demonstration roles, their permission matrix and one
+demo user per role so that every RBAC-guarded endpoint is actually reachable
+by an authenticated demonstration account. Demo credentials are fixed and
+documented; they are never real secrets.
 """
 
+import hashlib
 import sqlite3
-import os
 from pathlib import Path
 
 
@@ -97,7 +101,7 @@ CREATE TABLE IF NOT EXISTS assessments (
     status TEXT NOT NULL,
     created_at TEXT NOT NULL,
     completed_at TEXT,
-    mode TEXT NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'DETERMINISTIC_FALLBACK',
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
@@ -109,7 +113,7 @@ CREATE TABLE IF NOT EXISTS findings (
     severity TEXT NOT NULL,
     confidence TEXT NOT NULL,
     evidence_refs TEXT,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'OPEN',
     created_at TEXT NOT NULL,
     FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON DELETE CASCADE
 );
@@ -223,30 +227,95 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
 
 def init_database(db_path: str = "data/gxp.db") -> sqlite3.Connection:
     """Initialize database with schema if not exists.
-    
+
     Returns a connection ready to use. Idempotent.
     """
-    # Create directory if needed
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    
-    # Connect
-    conn = sqlite3.connect(db_path)
+
+    # The Flask dev server handles requests on multiple threads against one
+    # shared connection, so the same-thread guard must be disabled. Writes are
+    # short and the server serialises them in practice; busy_timeout guards
+    # against transient lock contention.
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    
-    # Execute schema
-    schema = get_schema_sql()
-    conn.executescript(schema)
+
+    conn.executescript(get_schema_sql())
     conn.commit()
-    
-    # Seed default roles if they don't exist
+
     _seed_default_roles(conn)
-    
+    _seed_default_permissions(conn)
+    _seed_demo_users(conn)
+
     return conn
 
 
+# --------------------------------------------------------------------------- #
+# Demo roles / permissions / users.
+# The permission matrix is the source of truth for `require_permission`. A role
+# that can read an assessment and one that can propose it are different powers;
+# seeding both with different matrices is what makes the 403 test meaningful.
+# --------------------------------------------------------------------------- #
+
+_DEMO_ACTIONS = (
+    "READ",
+    "EXPORT",
+    "INGEST",
+    "PROPOSE",
+    "APPROVE",
+    "RUN_ASSURANCE_LAB",
+)
+_DEMO_RESOURCES = (
+    "ASSESSMENT",
+    "EVIDENCE",
+    "GRAPH",
+    "APPROVALS",
+    "ASSURANCE_LAB",
+    "REPORTS",
+    "COPILOT",
+    "AUDIT",
+)
+
+# Everything a role may do, keyed by role id. Expansion is explicit so that an
+# auditor can verify the matrix by reading the source.
+_ROLE_PERMISSIONS: dict[str, set[tuple[str, str]]] = {
+    "SYSTEM_OWNER": {(action, resource) for action in _DEMO_ACTIONS for resource in _DEMO_RESOURCES},
+    "QA_REVIEWER": {
+        ("READ", "ASSESSMENT"), ("READ", "EVIDENCE"), ("READ", "GRAPH"),
+        ("READ", "APPROVALS"), ("READ", "REPORTS"), ("READ", "COPILOT"),
+        ("READ", "AUDIT"),
+        ("PROPOSE", "ASSESSMENT"),
+        ("INGEST", "EVIDENCE"),
+        ("APPROVE", "APPROVALS"),
+    },
+    "AUDITOR": {
+        ("READ", "ASSESSMENT"), ("READ", "EVIDENCE"), ("READ", "GRAPH"),
+        ("READ", "APPROVALS"), ("READ", "REPORTS"), ("READ", "COPILOT"),
+        ("READ", "AUDIT"), ("EXPORT", "REPORTS"),
+    },
+    "LEADERSHIP_VIEWER": {
+        ("READ", "ASSESSMENT"), ("READ", "EVIDENCE"), ("READ", "GRAPH"),
+        ("READ", "APPROVALS"), ("READ", "REPORTS"), ("READ", "COPILOT"),
+    },
+    "SECURITY_TESTER": {
+        ("READ", "GRAPH"), ("READ", "EVIDENCE"), ("READ", "COPILOT"),
+        ("READ", "AUDIT"), ("RUN_ASSURANCE_LAB", "ASSURANCE_LAB"),
+    },
+}
+
+_DEMO_USERS: dict[str, tuple[str, str, str]] = {
+    # user_id -> (username, demo password, role_id)
+    "u-system-owner": ("system.owner", "demo-SystemOwner-2026", "SYSTEM_OWNER"),
+    "u-qa-reviewer": ("qa.reviewer", "demo-QaReviewer-2026", "QA_REVIEWER"),
+    "u-auditor": ("auditor", "demo-Auditor-2026", "AUDITOR"),
+    "u-leader": ("leader", "demo-Leadership-2026", "LEADERSHIP_VIEWER"),
+    "u-security-tester": ("security.tester", "demo-SecurityTester-2026", "SECURITY_TESTER"),
+}
+
+
 def _seed_default_roles(conn: sqlite3.Connection) -> None:
-    """Seed default roles used in RBAC."""
+    """Seed default roles used in RBAC (idempotent)."""
     cursor = conn.execute("SELECT COUNT(*) FROM roles")
     if cursor.fetchone()[0] == 0:
         roles = [
@@ -258,6 +327,42 @@ def _seed_default_roles(conn: sqlite3.Connection) -> None:
         ]
         conn.executemany(
             "INSERT INTO roles (id, name, description) VALUES (?, ?, ?)",
-            [(r[0], r[0], r[1]) for r in roles]
+            [(r[0], r[0], r[1]) for r in roles],
         )
         conn.commit()
+
+
+def _seed_default_permissions(conn: sqlite3.Connection) -> None:
+    """Insert the permission matrix. New (role, action, resource) triples are
+    added; existing ones are left untouched so the file stays the source of
+    truth for future restarts."""
+    now = "2026-08-27T00:00:00+00:00"
+    rows = [
+        (f"perm-{role}-{action}-{resource}", role, action, resource, now)
+        for role, pairs in _ROLE_PERMISSIONS.items()
+        for action, resource in sorted(pairs)
+    ]
+    conn.executemany(
+        "INSERT OR IGNORE INTO permissions (id, role_id, action, resource, created_at)"
+        " VALUES (?, ?, ?, ?, ?)",
+        rows,
+    )
+    conn.commit()
+
+
+def _seed_demo_users(conn: sqlite3.Connection) -> None:
+    """Insert the five demonstration accounts if they do not exist yet.
+
+    Passwords are demo-only, deliberately simple, and documented. They are
+    stored as bare SHA-256 digests because SHA-256 is a single call on the
+    standard library; this is a prototype and these are not real identities.
+    """
+    now = "2026-08-27T00:00:00+00:00"
+    for user_id, (username, password, role_id) in _DEMO_USERS.items():
+        digest = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        conn.execute(
+            "INSERT OR IGNORE INTO users (id, username, password_hash, role_id, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, username, digest, role_id, now, now),
+        )
+    conn.commit()

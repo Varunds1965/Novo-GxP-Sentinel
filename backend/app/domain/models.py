@@ -16,6 +16,7 @@ from app.domain.enums import (
     AgentId,
     Applicability,
     ApprovalStatus,
+    AssessmentStatus,
     AuditConclusion,
     ConfidenceLevel,
     Currency,
@@ -308,3 +309,117 @@ class ReadinessIndicator:
     calculation: Mapping[str, float]
     computed_at: datetime
     disclaimer: str = "Not a compliance certification."
+
+
+def evidence_ref_to_dict(ref: EvidenceRef) -> dict[str, object]:
+    """One row of the findings table's `evidence_refs` JSON column.
+
+    Dates are serialised to ISO-8601 strings so the value is directly
+    JSON-serialisable and remains provenance-complete (PRIN-R-012).
+    """
+    return {
+        "source_id": ref.source_id,
+        "title": ref.title,
+        "location": ref.location,
+        "content_hash": ref.content_hash,
+        "version": ref.version,
+        "approval_status": ref.approval_status.value,
+        "trust_level": ref.trust_level.value,
+        "relevant_excerpt": ref.relevant_excerpt,
+        "retrieved_at": ref.retrieved_at.astimezone().isoformat(),
+    }
+
+
+@dataclass(frozen=True, slots=True)
+class Assessment:
+    """A persisted assessment run over one system's checklist (M3 row model)."""
+
+    id: str
+    system_id: str
+    user_id: str
+    status: AssessmentStatus
+    created_at: datetime
+    completed_at: datetime | None = None
+    mode: RuntimeMode = RuntimeMode.DETERMINISTIC_FALLBACK
+
+
+@dataclass(frozen=True, slots=True)
+class Finding:
+    """A persisted finding row, mirroring the `findings` table.
+
+    `severity` and `confidence` are the closed enums defined in this domain;
+    `evidence_refs` is a tuple of the JSON-compatible dicts produced by
+    `evidence_ref_to_dict` so the row round-trips without a framework.
+    """
+
+    id: str
+    assessment_id: str
+    control_id: str
+    finding: str
+    severity: Severity
+    confidence: ConfidenceLevel
+    evidence_refs: tuple[dict[str, object], ...] = ()
+    status: FindingStatus = FindingStatus.OPEN
+    created_at: datetime | None = None
+
+    @classmethod
+    def from_agent_finding(
+        cls,
+        finding: AgentFinding,
+        *,
+        assessment_id: str,
+        created_at: datetime,
+    ) -> "Finding":
+        # The engine's finding_id is deterministic per control (FND-<q_id>);
+        # the persisted primary key is scoped to the assessment so that two
+        # assessments of the same system never collide, while a re-run of the
+        # same assessment stays idempotent (same id, replaced row).
+        return cls(
+            id=f"{assessment_id}:{finding.finding_id}",
+            assessment_id=assessment_id,
+            control_id=finding.checklist_q_ids[0] if finding.checklist_q_ids else "",
+            finding=finding.claim,
+            severity=finding.severity,
+            confidence=finding.confidence.level,
+            evidence_refs=tuple(evidence_ref_to_dict(ref) for ref in finding.evidence),
+            status=finding.status,
+            created_at=created_at,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ReadinessScore:
+    """A persisted readiness snapshot (`readiness_scores` row model)."""
+
+    id: str
+    assessment_id: str
+    overall_score: int
+    status: str
+    dimensions: tuple[dict[str, object], ...] = ()
+    computed_at: datetime | None = None
+
+    @classmethod
+    def from_indicator(
+        cls,
+        *,
+        row_id: str,
+        assessment_id: str,
+        indicator: "ReadinessIndicator",
+    ) -> "ReadinessScore":
+        return cls(
+            id=row_id,
+            assessment_id=assessment_id,
+            overall_score=indicator.score,
+            status=indicator.verdict,
+            dimensions=tuple(
+                {
+                    "key": d.key,
+                    "label": d.label,
+                    "percentage": d.percentage,
+                    "caption": d.caption,
+                    "weight": d.weight,
+                }
+                for d in indicator.dimensions
+            ),
+            computed_at=indicator.computed_at,
+        )

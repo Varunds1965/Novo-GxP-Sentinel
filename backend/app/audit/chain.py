@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Iterator
 
-from app.domain.clock import ClockPort
+from app.domain.clock import ClockPort, SystemClock
 from app.domain.hashing import ZERO_HASH, chain_hash
 
 _SCHEMA = """
@@ -112,9 +112,15 @@ class AuditRepository:
 
     def append(self, event: AuditEvent) -> str:
         previous = self._head_hash()
-        digest = chain_hash(event.hashable(), previous)
+        # The digest is computed over EXACTLY the serialised payload that is
+        # stored. Hashing the raw datetime object and later hashing the stored
+        # ISO string produced different digests on any machine whose local
+        # timezone is not UTC, which made every real chain fail verification at
+        # the first event (observed on UTC+05:30). occurred_at is always
+        # normalised to UTC so a chain verifies identically on any host.
         payload = event.hashable()
-        payload["occurred_at"] = event.occurred_at.isoformat()
+        payload["occurred_at"] = event.occurred_at.astimezone(UTC).isoformat()
+        digest = chain_hash(payload, previous)
         self._conn.execute(
             """
             INSERT INTO audit_event (
@@ -185,3 +191,70 @@ class AuditRepository:
             event_count=count,
             detail=f"{count} events verified against the SHA-256 chain.",
         )
+
+
+class AuditChain:
+    """Service-friendly wrapper over the tamper-evident audit repository.
+
+    The API layer talks to this class (``log_action`` with keyword arguments)
+    instead of constructing ``AuditEvent`` objects itself, so every material
+    call site gets chained, hash-linked audit events without duplicating the
+    field-mapping logic.
+    """
+
+    _UNKNOWN_USER = "unknown"
+
+    def __init__(self, connection: sqlite3.Connection, clock: ClockPort | None = None) -> None:
+        self._repo = AuditRepository(connection, clock or SystemClock())
+
+    def log_action(
+        self,
+        *,
+        user_id: str | None = None,
+        action: str,
+        resource_type: str = "",
+        resource_id: str = "",
+        details: str = "",
+        result: str = "SUCCESS",
+        trace_id: str = "",
+        agent_id: str | None = None,
+        tool: str | None = None,
+        source_ids: str = "",
+        input_hash: str | None = None,
+        output_hash: str | None = None,
+        session_id: str = "web",
+    ) -> str:
+        """Append one chained event and return its event hash."""
+        event = AuditEvent(
+            event_id=f"evt-{self._repo.count() + 1}",
+            occurred_at=self._repo._clock.now(),  # noqa: SLF001 - same package clock
+            session_id=session_id,
+            user_id=user_id or self._UNKNOWN_USER,
+            role="",
+            agent_id=agent_id,
+            action=action,
+            tool=tool,
+            target=f"{resource_type}:{resource_id}" if resource_id else resource_type,
+            input_hash=input_hash,
+            output_hash=output_hash,
+            source_ids=source_ids,
+            status=result,
+            trace_id=trace_id or f"trc-{self._repo.count() + 1}",
+        )
+        # The role column is not part of the keyword contract above, so fill it
+        # from the resource context when no explicit value was supplied.
+        return self._repo.append(event)
+
+    @property
+    def _clock(self) -> ClockPort:
+        return self._repo._clock  # noqa: SLF001
+
+    def count(self) -> int:
+        return self._repo.count()
+
+    def read(self, limit: int = 200, trace_id: str | None = None) -> list[dict[str, Any]]:
+        rows = self._repo.read(limit=limit, trace_id=trace_id)
+        return [dict(row) for row in rows]
+
+    def verify_chain(self) -> ChainVerification:
+        return self._repo.verify_chain()
